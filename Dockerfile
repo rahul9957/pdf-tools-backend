@@ -2,7 +2,6 @@
 FROM node:18-slim
 
 # Step 2: Zaroori dependencies aur LibreOffice install karein
-# Yeh command server par poora LibreOffice suite install kar dega
 RUN apt-get update && \
     apt-get install -y libreoffice && \
     rm -rf /var/lib/apt/lists/*
@@ -22,5 +21,5 @@ COPY . .
 # Step 7: Application ka port expose karein
 EXPOSE 3000
 
-# Step 8: Server ko start karne ke liye command
+# Step 8: Server ko start karne ke liye CORRECTED command
 CMD [ "node", "server.js" ]
