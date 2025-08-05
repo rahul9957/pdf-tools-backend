@@ -2,11 +2,14 @@
 FROM node:18-slim
 
 # Step 2: Zaroori dependencies, LibreOffice, AUR ZAROORI FONTS install karein
-# --no-install-recommends se sirf zaroori packages install honge
+# noninteractive flag se user input nahi maangega
+ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
     fonts-liberation \
+    fonts-noto \
+    ttf-mscorefonts-installer \
     && rm -rf /var/lib/apt/lists/*
 
 # Step 3: Application ke liye ek directory banayein
