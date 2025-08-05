@@ -26,7 +26,14 @@ app.post('/api/pdf-to-jpg', upload.single('file'), (req, res) => {
         res.send('PDF converted to JPG successfully');
     });
 });
-
+const express = require('express');
+const cors = require('cors'); // 1. YEH LINE ADD KAREIN
+const app = express();
+app.use(cors());
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+});
 app.get('/', (req, res) => {
     res.send('PDF Tools Backend is running');
 });
