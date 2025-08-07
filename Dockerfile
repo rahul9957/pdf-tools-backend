@@ -1,30 +1,35 @@
-FROM python:3.11-slim
+# Step 1: Ek complete base image se start karein
+FROM node:18-bookworm
 
+# Step 2: Zaroori dependencies, LibreOffice, aur Ghostscript install karein
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Install system packages
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libreoffice \
-        fonts-liberation \
-        fonts-noto \
-        fonts-dejavu \
-        curl \
-        unzip \
-        && rm -rf /var/lib/apt/lists/*
+    libreoffice \
+    ghostscript \
+    # Font management ke liye zaroori tool
+    fontconfig \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create fonts directory
+# Step 3: Fonts ke liye ek naya folder banayein
+WORKDIR /usr/src/app
 RUN mkdir -p /usr/share/fonts/truetype/custom
 
-# Copy custom fonts into the image
-COPY fonts/*.ttf /usr/share/fonts/truetype/custom/
+# Step 4: Apne project ke fonts folder se fonts ko container mein copy karein
+COPY fonts/ /usr/share/fonts/truetype/custom/
 
-# Rebuild font cache
+# Step 5: System ka font cache update karein taaki LibreOffice fonts ko dhoondh sake (SABSE ZAROORI STEP)
 RUN fc-cache -f -v
 
-# Copy app files and install dependencies
-WORKDIR /app
-COPY . /app
-RUN pip install --no-cache-dir -r requirements.txt
+# Step 6: package.json ko copy karke packages install karein
+COPY package*.json ./
+RUN npm install
 
-CMD ["python", "main.py"]
+# Step 7: Apne project ke baaki code ko copy karein
+COPY . .
+
+# Step 8: Application ka port expose karein
+EXPOSE 3000
+
+# Step 9: Server ko start karne ke liye command
+CMD [ "node", "server.js" ]
