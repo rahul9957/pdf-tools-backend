@@ -2,7 +2,14 @@
 FROM node:18-slim
 
 # Step 2: Zaroori dependencies, LibreOffice, Fonts, aur Ghostscript install karein
+# noninteractive flag se user input nahi maangega
 ENV DEBIAN_FRONTEND=noninteractive
+
+# YEH NAYI LINE ERROR KO FIX KARTI HAI
+# Microsoft fonts ke EULA ko pehle se hi accept kar lein
+RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
+
+# Ab installation command bina ruke chalegi
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
