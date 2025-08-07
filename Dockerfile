@@ -1,35 +1,31 @@
-# Step 1: Use Node.js slim image
+# Step 1: Node.js environment se start karein
 FROM node:18-slim
 
-# Step 2: Set environment to noninteractive to avoid prompts
+# Step 2: Zaroori dependencies, LibreOffice, Fonts, aur Ghostscript install karein
 ENV DEBIAN_FRONTEND=noninteractive
-
-# Step 3: Install dependencies and fonts
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
+    ghostscript \
     fonts-liberation \
     fonts-noto \
-    fonts-dejavu \
-    fonts-freefont-ttf \
+    ttf-mscorefonts-installer \
     && rm -rf /var/lib/apt/lists/*
 
-# ttf-mscorefonts-installer is excluded to avoid EULA prompt breaking the build
-
-# Step 4: Create app directory
+# Step 3: Application ke liye ek directory banayein
 WORKDIR /usr/src/app
 
-# Step 5: Copy package.json files
+# Step 4: package.json aur package-lock.json ko copy karein
 COPY package*.json ./
 
-# Step 6: Install Node dependencies
+# Step 5: Node.js packages ko install karein
 RUN npm install
 
-# Step 7: Copy the rest of the application code
+# Step 6: Apne project ke baaki code ko copy karein
 COPY . .
 
-# Step 8: Expose the app port
+# Step 7: Application ka port expose karein
 EXPOSE 3000
 
-# Step 9: Start the server
+# Step 8: Server ko start karne ke liye command
 CMD [ "node", "server.js" ]
