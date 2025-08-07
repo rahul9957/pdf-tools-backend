@@ -4,9 +4,11 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const libre = require('libreoffice-convert');
+const { exec } = require('child_process'); // Hum ab seedhe command chalayenge
 const sharp = require('sharp');
-const { exec } = require('child_process');
+
+// 'libreoffice-convert' ki ab zaroorat nahi hai
+// const libre = require('libreoffice-convert');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -14,30 +16,50 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 const upload = multer({ dest: os.tmpdir() });
 
+// --- NAYA, DIRECT TAREEKA FILE CONVERSION KE LIYE ---
 const handleConversion = async (req, res, outputExtension) => {
-    if (!req.file) return res.status(400).send('No file uploaded.');
-    const inputPath = req.file.path;
-    const originalName = path.parse(req.file.originalname).name;
-    const outputPath = path.join(os.tmpdir(), `${originalName}.${outputExtension}`);
-    try {
-        const fileBuffer = fs.readFileSync(inputPath);
-        const done = await new Promise((resolve, reject) => {
-            libre.convert(fileBuffer, `.${outputExtension}`, undefined, (err, result) => {
-                if (err) return reject(new Error('File conversion failed using LibreOffice. Check server logs.'));
-                fs.writeFileSync(outputPath, result);
-                resolve(result);
-            });
-        });
-        res.download(outputPath, `${originalName}.${outputExtension}`);
-    } catch (error) {
-        console.error("Conversion Error:", error);
-        res.status(500).send(error.message);
-    } finally {
-        if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
-        if (fs.existsSync(outputPath)) fs.unlinkSync(outputPath);
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
     }
+
+    const inputPath = req.file.path;
+    const outputDir = os.tmpdir();
+    const originalName = path.parse(req.file.originalname).name;
+
+    // LibreOffice ko direct command dena
+    const command = `libreoffice --headless --convert-to ${outputExtension} --outdir "${outputDir}" "${inputPath}"`;
+
+    exec(command, (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Exec Error: ${error.message}`);
+            console.error(`Stderr: ${stderr}`);
+            // Error aane par input file delete karna
+            fs.unlinkSync(inputPath);
+            return res.status(500).send('File conversion failed on the server.');
+        }
+
+        const outputPath = path.join(outputDir, `${path.basename(inputPath, path.extname(inputPath))}.${outputExtension}`);
+        
+        // Check karein ki output file bani hai ya nahi
+        if (fs.existsSync(outputPath)) {
+            res.download(outputPath, `${originalName}.${outputExtension}`, (downloadErr) => {
+                if (downloadErr) {
+                    console.error("Download Error:", downloadErr);
+                }
+                // Dono temporary files ko delete karna
+                fs.unlinkSync(inputPath);
+                fs.unlinkSync(outputPath);
+            });
+        } else {
+            console.error('Conversion succeeded but output file was not found.');
+            console.error(`Expected path: ${outputPath}`);
+            fs.unlinkSync(inputPath);
+            res.status(500).send('Conversion failed: Output file not created.');
+        }
+    });
 };
 
+// --- API ROUTES (ab naye function ka istemal karenge) ---
 app.post('/convert/pdf-to-word', upload.single('file'), (req, res) => handleConversion(req, res, 'docx'));
 app.post('/convert/word-to-pdf', upload.single('file'), (req, res) => handleConversion(req, res, 'pdf'));
 app.post('/convert/pdf-to-ppt', upload.single('file'), (req, res) => handleConversion(req, res, 'pptx'));
