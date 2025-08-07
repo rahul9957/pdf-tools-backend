@@ -4,11 +4,8 @@ const multer = require('multer');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { exec } = require('child_process'); // Hum ab seedhe command chalayenge
+const { exec } = require('child_process');
 const sharp = require('sharp');
-
-// 'libreoffice-convert' ki ab zaroorat nahi hai
-// const libre = require('libreoffice-convert');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,44 +13,50 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 const upload = multer({ dest: os.tmpdir() });
 
-// --- NAYA, DIRECT TAREEKA FILE CONVERSION KE LIYE ---
-const handleConversion = async (req, res, outputExtension) => {
+// --- FINAL, CORRECTED CONVERSION FUNCTION ---
+const handleConversion = (req, res, outputExtension) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
 
     const inputPath = req.file.path;
     const outputDir = os.tmpdir();
-    const originalName = path.parse(req.file.originalname).name;
+    // Original file ka naam (bina extension ke) nikalna
+    const originalNameWithoutExt = path.parse(req.file.originalname).name;
+    
+    // LibreOffice is naam se file banayega
+    const expectedOutputPath = path.join(outputDir, `${originalNameWithoutExt}.${outputExtension}`);
 
     // LibreOffice ko direct command dena
     const command = `libreoffice --headless --convert-to ${outputExtension} --outdir "${outputDir}" "${inputPath}"`;
 
     exec(command, (error, stdout, stderr) => {
+        // Cleanup function jo temporary files ko delete karega
+        const cleanup = () => {
+            if (fs.existsSync(inputPath)) fs.unlinkSync(inputPath);
+            if (fs.existsSync(expectedOutputPath)) fs.unlinkSync(expectedOutputPath);
+        };
+
         if (error) {
             console.error(`Exec Error: ${error.message}`);
             console.error(`Stderr: ${stderr}`);
-            // Error aane par input file delete karna
-            fs.unlinkSync(inputPath);
+            cleanup();
             return res.status(500).send('File conversion failed on the server.');
         }
 
-        const outputPath = path.join(outputDir, `${path.basename(inputPath, path.extname(inputPath))}.${outputExtension}`);
-        
-        // Check karein ki output file bani hai ya nahi
-        if (fs.existsSync(outputPath)) {
-            res.download(outputPath, `${originalName}.${outputExtension}`, (downloadErr) => {
+        // Check karein ki output file uske original naam se bani hai ya nahi
+        if (fs.existsSync(expectedOutputPath)) {
+            res.download(expectedOutputPath, `${originalNameWithoutExt}.${outputExtension}`, (downloadErr) => {
                 if (downloadErr) {
                     console.error("Download Error:", downloadErr);
                 }
-                // Dono temporary files ko delete karna
-                fs.unlinkSync(inputPath);
-                fs.unlinkSync(outputPath);
+                cleanup(); // Download ke baad cleanup
             });
         } else {
             console.error('Conversion succeeded but output file was not found.');
-            console.error(`Expected path: ${outputPath}`);
-            fs.unlinkSync(inputPath);
+            console.error(`Expected path was: ${expectedOutputPath}`);
+            console.error(`Files in output dir:`, fs.readdirSync(outputDir));
+            cleanup(); // Error aane par bhi cleanup
             res.status(500).send('Conversion failed: Output file not created.');
         }
     });
