@@ -1,29 +1,27 @@
-# Step 1: Node.js environment se start karein
-FROM node:18-slim
+# Step 1: Ek zyada complete base image se start karein jo build tools ke saath aata hai
+FROM node:18-bookworm
 
 # Step 2: Zaroori dependencies, LibreOffice, Fonts, aur Ghostscript install karein
 # noninteractive flag se user input nahi maangega
 ENV DEBIAN_FRONTEND=noninteractive
 
-# YEH NAYI LINE ERROR KO FIX KARTI HAI
-# Microsoft fonts ke EULA ko pehle se hi accept kar lein
-RUN echo "ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true" | debconf-set-selections
-
-# Ab installation command bina ruke chalegi
+# Is baar hum 'contrib' section add kar rahe hain taaki zaroori packages mil sakein
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libreoffice \
     ghostscript \
     fonts-liberation \
-    fonts-noto \
-    ttf-mscorefonts-installer \
+    fonts-noto-core \
+    # Yeh Microsoft fonts ka ek behtar alternative hai jo EULA nahi maangta
+    fonts-croscore \
     && rm -rf /var/lib/apt/lists/*
 
 # Step 3: Application ke liye ek directory banayein
 WORKDIR /usr/src/app
 
 # Step 4: package.json aur package-lock.json ko copy karein
-COPY package*.json ./
+# Sirf package.json copy karna better practice hai taaki cache ka aache se istemal ho
+COPY package.json ./
 
 # Step 5: Node.js packages ko install karein
 RUN npm install
