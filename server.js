@@ -22,11 +22,14 @@ const handleConversion = (req, res, outputExtension) => {
     const inputPath = req.file.path;
     const outputDir = os.tmpdir();
     const originalNameWithoutExt = path.parse(req.file.originalname).name;
+    
+    // YEH SABSE ZAROORI FIX HAI:
+    // Output file ka naam temporary input file ke naam se banega
     const tempFilenameWithoutExt = path.basename(inputPath);
     const expectedOutputPath = path.join(outputDir, `${tempFilenameWithoutExt}.${outputExtension}`);
 
-    // LibreOffice command with a 30-second timeout
-    const command = `timeout 30s libreoffice --headless --convert-to ${outputExtension} --outdir "${outputDir}" "${inputPath}"`;
+    // LibreOffice ko direct command dena
+    const command = `libreoffice --headless --convert-to ${outputExtension} --outdir "${outputDir}" "${inputPath}"`;
 
     exec(command, (error, stdout, stderr) => {
         const cleanup = () => {
@@ -38,16 +41,16 @@ const handleConversion = (req, res, outputExtension) => {
             console.error(`Exec Error: ${error.message}`);
             console.error(`Stderr: ${stderr}`);
             cleanup();
-            // Agar process timeout hota hai (memory ki kami se), to yeh error aayega
-            if (error.signal === 'SIGTERM' || error.code === 124) {
-                return res.status(500).send('Conversion failed: The process took too long, possibly due to low server memory or a very complex file.');
-            }
-            return res.status(500).send('File conversion failed on the server. The file might be corrupt or unsupported.');
+            return res.status(500).send('File conversion failed on the server.');
         }
 
+        // Ab hum file ko uske sahi naam se dhoondh rahe hain
         if (fs.existsSync(expectedOutputPath)) {
+            // Download karte waqt user ko original naam denge
             res.download(expectedOutputPath, `${originalNameWithoutExt}.${outputExtension}`, (downloadErr) => {
-                if (downloadErr) console.error("Download Error:", downloadErr);
+                if (downloadErr) {
+                    console.error("Download Error:", downloadErr);
+                }
                 cleanup();
             });
         } else {
